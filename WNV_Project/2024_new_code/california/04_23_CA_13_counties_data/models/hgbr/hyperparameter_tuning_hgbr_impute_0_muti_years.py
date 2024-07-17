@@ -98,13 +98,13 @@ for tuning_year in tuning_years_list:
 
             # Define the hyperparameter space for hgbr
             space = {
-                'max_depth': hp.choice('max_depth', np.arange(1, 31, dtyle=int)),
+                'max_depth': hp.choice('max_depth', np.arange(1, 31, dtype=int)),
                 'max_iter':  hp.choice('max_iter', np.arange(100, 1001, 100, dtype=int)),
                 'learning_rate': hp.uniform('learning_rate', 0.01, 0.5),
                 'l2_regularization': hp.uniform('l2_regularization', 0.0, 1.0),
-                'max_leaf_nodes': hp.choice('max_leaf_nodes', np.range(10, 101, 10, dtype=int)),
-                'min_samples_leaf': hp.choice('min_samples_leaf', np.range(1, 11, 1, dtype=int)),
-                'max_bins': hp.choice('max_bins', np.range(10, 256, 5, dtype=int)),
+                'max_leaf_nodes': hp.choice('max_leaf_nodes', np.arange(10, 101, 10, dtype=int)),
+                'min_samples_leaf': hp.choice('min_samples_leaf', np.arange(1, 11, 1, dtype=int)),
+                'max_bins': hp.choice('max_bins', np.arange(10, 256, 5, dtype=int)),
                 'scoring': hp.choice('scoring', ['loss', 'neg_mean_squared_error', 'neg_mean_absolute_error'])
             }
 
