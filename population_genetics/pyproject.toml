@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "population-genetics"
+version = "0.1.0"
+description = ""
+authors = ["ericliao <yliao13@uncc.edu>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+pandas = "^2.2.0"
+xarray = "^2024.1.1"
+numpy = "^1.26.3"
+opencv-python = "^4.9.0.80"
+netcdf4 = "^1.6.5"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
