@@ -52,7 +52,7 @@ tuning_years_list = [2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014,
 tuning_year_dict = {}
 
 ## store the best hyperparameters in a dataframe
-best_hyperparameters_df = pd.DataFrame(columns=["tuning_year", "max_depth", "max_iter", "learning_rate", "l2_regularization", "max_leaf_nodes", "min_samples_leaf", "max_bins", "scoring"])
+best_hyperparameters_df = pd.DataFrame(columns=["tuning_year", "n_estimators", "max_depth", "min_samples_split", "min_samples_leaf", "max_features", "max_samples", "max_leaf_nodes", "min_impurity_decrease"])
 
 for tuning_year in tuning_years_list:
     ## print the tuning year
@@ -84,58 +84,66 @@ for tuning_year in tuning_years_list:
             test_column_names = test.columns
 
             # Define the mappings for kernel and gamma
-            scoring_map = ['loss', 'neg_mean_squared_error', 'neg_mean_absolute_error']
+            max_features_map = [ # Integer
+                0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0,  # Floats in range (0.0, 1.0]
+                'sqrt', 'log2'  # Strings
+            ]
 
             ## tuning the hyperparameters using hyperopt
             def objective(params):
-                # int params
+                # int the hyperparameters
+                params['n_estimators'] = int(params['n_estimators'])
                 params['max_depth'] = int(params['max_depth'])
-                params['max_iter'] = int(params['max_iter'])
-                params['max_leaf_nodes'] = int(params['max_leaf_nodes'])
+                params['min_samples_split'] = int(params['min_samples_split'])
                 params['min_samples_leaf'] = int(params['min_samples_leaf'])
-                params['max_bins'] = int(params['max_bins'])
+                params['max_leaf_nodes'] = int(params['max_leaf_nodes'])
 
-                #hgbr
-                hgbr = ensemble.HistGradientBoostingRegressor(**params)
-                hgbr.fit(train, train_labels)
-                y_predict = hgbr.predict(test)
+                # map max_features correctly
+                params['max_features'] = max_features_map[params['max_features']]
+
+                #random forest
+                rf = ensemble.RandomForestRegressor(**params)
+                rf.fit(train, train_labels)
+                y_predict = rf.predict(test)
                 ## CALCULATE q2
                 q2 = metrics.r2_score(test_labels, y_predict)
                 return -q2
 
-            # Define the hyperparameter space for hgbr
-            space = {
-                'max_depth': hp.quniform('max_depth', 1, 30, 1),
-                'max_iter':  hp.quniform('max_iter', 100, 1000, 100),
-                'learning_rate': hp.uniform('learning_rate', 0.01, 0.5),
-                'l2_regularization': hp.uniform('l2_regularization', 0.0, 1.0),
-                'max_leaf_nodes': hp.quniform('max_leaf_nodes', 10, 100, 10),
-                'min_samples_leaf': hp.quniform('min_samples_leaf', 1, 10, 1),
-                'max_bins': hp.quniform('max_bins', 10, 255, 5),
-                'scoring': hp.choice('scoring', ['loss', 'neg_mean_squared_error', 'neg_mean_absolute_error'])
-            }
+            # Define the hyperparameter space for random forest
+            space = {'n_estimators': hp.quniform('n_estimators', 100, 1000, 1),
+                     'max_depth': hp.quniform('max_depth', 1, 20, 1),
+                     'min_samples_split': hp.quniform('min_samples_split', 2, 10, 1),
+                     'min_samples_leaf': hp.quniform('min_samples_leaf', 1, 10, 1),
+                     'max_features': hp.choice('max_features', list(range(len(max_features_map)))),
+                     'max_samples': hp.uniform('max_samples', 0.1, 1),
+                     'max_leaf_nodes': hp.quniform('max_leaf_nodes', 10, 100, 1),
+                     'min_impurity_decrease': hp.uniform('min_impurity_decrease', 0, 0.1)
+                     }
 
             best = fmin(fn=objective, space=space, algo=tpe.suggest, max_evals=100)
 
-            # Map the best indices back to the corresponding string values
-            best['scoring'] = scoring_map[int(best['scoring'])]
+            # int the hyperparameters
+            best['n_estimators'] = int(best['n_estimators'])
+            best['max_depth'] = int(best['max_depth'])
+            best['min_samples_split'] = int(best['min_samples_split'])
+            best['min_samples_leaf'] = int(best['min_samples_leaf'])
+            best['max_leaf_nodes'] = int(best['max_leaf_nodes'])
+            # Map max_features index to actual value
+            best['max_features'] = max_features_map[best['max_features']]
 
             ## update the best hyperparameters
             best_hyperparameters.append(best)
 
-            ## int the best hyperparameters
-            best["max_depth"] = int(best["max_depth"])
-            best["max_iter"] = int(best["max_iter"])
-            best["max_leaf_nodes"] = int(best["max_leaf_nodes"])
-            best["min_samples_leaf"] = int(best["min_samples_leaf"])
-            best["max_bins"] = int(best["max_bins"])
-
             ## store the best hyperparameters in a dataframe
-            best_hyperparameters_df = best_hyperparameters_df.append({"tuning_year": year, "max_depth": best["max_depth"],
-                                                                      "max_iter": best["max_iter"], "learning_rate": best["learning_rate"],
-                                                                      "l2_regularization": best["l2_regularization"], "max_leaf_nodes": best["max_leaf_nodes"],
-                                                                      "min_samples_leaf": best["min_samples_leaf"], "max_bins": best["max_bins"],
-                                                                      "scoring": best["scoring"]}, ignore_index=True)
+            best_hyperparameters_df = best_hyperparameters_df.append({"tuning_year": year,
+                                                "n_estimators": best["n_estimators"],
+                                                "max_depth": best["max_depth"],
+                                                "min_samples_split": best["min_samples_split"],
+                                                "min_samples_leaf": best["min_samples_leaf"],
+                                                "max_features": best["max_features"],
+                                                "max_samples": best["max_samples"],
+                                                "max_leaf_nodes": best["max_leaf_nodes"],
+                                                "min_impurity_decrease": best["min_impurity_decrease"]}, ignore_index=True)
 
     print("best_hyperparameters: ", best_hyperparameters)
     # Start to use the earliest first three years to train the model and predict the next year,
@@ -171,11 +179,11 @@ for tuning_year in tuning_years_list:
             train_column_names = train.columns
             test_column_names = test.columns
 
-            # hgbr
-            hgbr = ensemble.HistGradientBoostingRegressor(**best_hyperparameters[0])
-            hgbr.fit(train, train_labels)
+            # rf
+            rf = ensemble.RandomForestRegressor(**best_hyperparameters[0])
+            rf.fit(train, train_labels)
 
-            y_predict = hgbr.predict(test)
+            y_predict = rf.predict(test)
 
             mse = metrics.mean_squared_error(test_labels, y_predict)
             #RMSE
@@ -199,7 +207,7 @@ for tuning_year in tuning_years_list:
     tuning_year_dict[tuning_year] = {"q2": r2_list, "rmse": rmse_list}
 
 ## save the best hyperparameters in a csv file
-best_hyperparameters_df.to_csv("/Users/ericliao/Desktop/WNV_project_files/WNV/california/CA_13_county_dataset/result/plots/HGBR/hyperparameter_tuning_plots/hyperparameter_tuning_hgbr_impute_0.csv", index=False)
+best_hyperparameters_df.to_csv("/Users/ericliao/Desktop/WNV_project_files/WNV/california/CA_13_county_dataset/result/plots/RF/hyperparameter_tuning_plots/hyperparameter_tuning_rf_impute_0.csv", index=False)
 
 x_axis_years = [2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023]
 
@@ -214,8 +222,8 @@ q2_array = np.clip(q2_array, -1, 1)
 
 sns.heatmap(q2_array, cmap='PiYG', annot=True, annot_kws={"size": 15}, fmt=".2f", linewidths=0.5, ax=ax, center=0)
 plt.xlabel("Predicting Year", fontsize=22)
-plt.ylabel("HGBR Model Using Best Hyperparameter for Predicting Year ____", fontsize=22)
-plt.title("Q2 Heatmap for HGBR Hyperparameter Tuning", fontsize=25)
+plt.ylabel("RF Model Using Best Hyperparameter for Predicting Year ____", fontsize=22)
+plt.title("Q2 Heatmap for RF Hyperparameter Tuning", fontsize=25)
 
 ## set the x ticks at the center of the cell
 ax.set_xticks(np.arange(len(x_axis_years)) + 0.5, minor=False)
@@ -230,7 +238,7 @@ ax.set_yticklabels(tuning_years_list, minor=False, fontsize=18)
 plt.xticks(rotation=45)
 ## compact the layout
 plt.tight_layout()
-plt.savefig("/Users/ericliao/Desktop/WNV_project_files/WNV/california/CA_13_county_dataset/result/plots/HGBR/hyperparameter_tuning_plots/q2_tuning_year_heatmap_hgbr.png")
+plt.savefig("/Users/ericliao/Desktop/WNV_project_files/WNV/california/CA_13_county_dataset/result/plots/RF/hyperparameter_tuning_plots/q2_tuning_year_heatmap_hgbr.png")
 plt.close()
 
 ## plot heatmap where the x-axis is the x_axis_years and the y-axis is the tuning year, the color is the rmse
@@ -241,8 +249,8 @@ for tuning_year in tuning_years_list:
 
 sns.heatmap(rmse_array, cmap='Reds', annot=True, annot_kws={"size": 15}, fmt=".2f", linewidths=0.5, ax=ax)
 plt.xlabel("Predicting Year", fontsize=22)
-plt.ylabel("HGBR Model Using Best Hyperparameter for Predicting Year ____", fontsize=22)
-plt.title("RMSE Heatmap for HGBR Hyperparameter Tuning", fontsize=25)
+plt.ylabel("RF Model Using Best Hyperparameter for Predicting Year ____", fontsize=22)
+plt.title("RMSE Heatmap for RF Hyperparameter Tuning", fontsize=25)
 
 ## set the x ticks at the center of the cell
 ax.set_xticks(np.arange(len(x_axis_years)) + 0.5, minor=False)
@@ -258,5 +266,5 @@ plt.xticks(rotation=45)
 ## compact the layout
 plt.tight_layout()
 
-plt.savefig("/Users/ericliao/Desktop/WNV_project_files/WNV/california/CA_13_county_dataset/result/plots/HGBR/hyperparameter_tuning_plots/rmse_tuning_year_heatmap_hgbr.png")
+plt.savefig("/Users/ericliao/Desktop/WNV_project_files/WNV/california/CA_13_county_dataset/result/plots/RF/hyperparameter_tuning_plots/rmse_tuning_year_heatmap_hgbr.png")
 plt.close()

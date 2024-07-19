@@ -73,29 +73,55 @@ test = pd.DataFrame(scaler.transform(test), columns=test.columns)
 train_column_names = train.columns
 test_column_names = test.columns
 
-## train the model
-# model = SVR(C=8.967266674728009, epsilon=0.10424919467608322, gamma='auto', kernel='rbf')
+## read the best hyperparameters from the file
+best_hyperparameters = pd.read_csv("/Users/ericliao/Desktop/WNV_project_files/WNV/california/"
+                                   "CA_13_county_dataset/result/plots/SVM/hyperparameter_tuning_plots/"
+                                   "hyperparameter_tuning_svm_impute_0_with_daylight_best_hyperparameters.csv",
+                                      index_col=False, header=0)
 
-## with daylight using 2018
-model = SVR(C=9.95788255181122, epsilon=0.108647398528809, gamma='scale', kernel='rbf')
+## create a dataframe to store the tuning year, q2 and RMSE and hyperparameters
+tuning_year_q2_rmse = pd.DataFrame(columns=["tuning_year", "q2", "RMSE", "C", "epsilon", "gamma", "kernel"])
 
-model.fit(train, train_labels)
+## create a list to store the tuning year, q2 and RMSE
+tuning_year_q2_rmse_list = []
 
-# Predict the test data
-predictions = model.predict(test)
+for index, row in best_hyperparameters.iterrows():
+    hyperparameter_tuning_year = row['tuning_year']
+    C = float(row['C'])
+    epsilon = float(row['epsilon'])
+    gamma = row['gamma']
+    kernel = row['kernel']
 
-# Calculate the Q^2 and RMSE
-q2 = metrics.r2_score(test_labels, predictions)
+    ## with daylight using 2018
+    model = SVR(C=C, epsilon=epsilon, gamma=gamma, kernel=kernel)
 
-print("Q^2: ", q2)
+    model.fit(train, train_labels)
 
-# Calculate the RMSE
-rmse = np.sqrt(metrics.mean_squared_error(test_labels, predictions))
+    # Predict the test data
+    predictions = model.predict(test)
 
-print("RMSE: ", rmse)
+    # Calculate the Q^2 and RMSE
+    q2 = metrics.r2_score(test_labels, predictions)
 
-def f(X):
-    return model.predict(X)
+    # Calculate the RMSE
+    rmse = np.sqrt(metrics.mean_squared_error(test_labels, predictions))
+
+    ## append the tuning year, q2 and RMSE to the list
+    tuning_year_q2_rmse_list.append([hyperparameter_tuning_year, q2, rmse, C, epsilon, gamma, kernel])
+
+    ## print the Q^2 and RMSE with tuning year
+    print(f"tuning year: {hyperparameter_tuning_year}, q2: {q2}, RMSE: {rmse}, ")
+
+## append the tuning year, q2 and RMSE to the dataframe
+tuning_year_q2_rmse = pd.DataFrame(tuning_year_q2_rmse_list, columns=["tuning_year", "q2", "RMSE", "C", "epsilon", "gamma", "kernel"])
+
+## save the tuning year, q2 and RMSE to a csv file
+tuning_year_q2_rmse.to_csv("/Users/ericliao/Desktop/WNV_project_files/WNV/california/CA_13_county_dataset/result/plots/SVM/hyperparameter_tuning_plots/"
+                           "hyperparameter_tuning_svm_impute_0_q2_rmse.csv", index=False)
+
+#
+# def f(X):
+#     return model.predict(X)
 
 # ## shap values
 # explainer = shap.Explainer(f, test)(test)
