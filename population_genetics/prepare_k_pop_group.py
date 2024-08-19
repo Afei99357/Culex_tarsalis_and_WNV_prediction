@@ -11,8 +11,7 @@ df_group = pd.read_csv(
 
 ## read file with mosquito ID and population
 df_pop = pd.read_csv(
-    "/Users/ericliao/Desktop/WNV_project_files/"
-    "Ctarsalis_sample_w_GPS_climate_average_new_filtered_id.csv",
+    "/Users/ericliao/Desktop/WNV_project_files/landscape_genetics/Ctarsalis_sample_w_GPS_climate_average_new_filtered_id_region.csv",
     sep=",",
     header=0,
     index_col=0,
@@ -43,5 +42,5 @@ for index, row in df_group.iterrows():
 
 ## save the df_pop as a csv file
 df_pop.to_csv(
-    "/Users/ericliao/Desktop/WNV_project_files/Ctarsalis_sample_w_GPS_climate_average_new_filtered_id_region.csv"
+    "/Users/ericliao/Desktop/Ctarsalis_sample_w_GPS_climate_average_new_filtered_id_region.csv"
 )

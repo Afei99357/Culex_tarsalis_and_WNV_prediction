@@ -9,13 +9,40 @@ culex_gene_ontology_df = pd.read_csv(
     header=0
 )
 
+interest_gene_list = ['Ct.00g025080', 'Ct.00g026900', 'Ct.00g030230', 'Ct.00g032480', 'Ct.00g049290', 'Ct.00g051300',
+                      'Ct.00g062900', 'Ct.00g064410', 'Ct.00g095350', 'Ct.00g154760', 'Ct.00g176220', 'Ct.00g179740',
+                      'Ct.00g237940', 'Ct.00g238000', 'Ct.00g280270', 'Ct.00g280280', 'Ct.00g290200']
+
+## only keep interest genes in the gene ontology list
+culex_gene_ontology_df = culex_gene_ontology_df[culex_gene_ontology_df["Gene_ID"].isin(interest_gene_list)]
+
 ## read rda result
-alt_allel_df = pd.read_csv(
+alt_allel_df_rda = pd.read_csv(
     "/Users/ericliao/Desktop/WNV_project_files/landscape_genetics/Paper_results/Landscape_genetics_GEA/"
     "RDA_Redundancy_Analysis/rda_matched_candidate_to_gene.csv",
     header=0,
     index_col=0,
 )
+
+alt_allel_df_lfmm = pd.read_csv("/Users/ericliao/Desktop/WNV_project_files/landscape_genetics/Paper_results/"
+                                "Landscape_genetics_GEA/LFMM_LatentFactorMixedModels/lfmm_pc1_matched_candidate_to_gene.csv",
+                                header=0,
+                                index_col=0)
+
+alt_allel_df_pcadapt = pd.read_csv("/Users/ericliao/Desktop/WNV_project_files/landscape_genetics/"
+                                   "Paper_results/outlier_analysis/PCAdapt_RESULTS/pcadapt_matched_candidate_to_gene.csv",
+                                   header=0,
+                                   index_col=0)
+
+alt_allel_df_bayescan = pd.read_csv("/Users/ericliao/Desktop/WNV_project_files/landscape_genetics/"
+                                    "Paper_results/outlier_analysis/bayescan/bayescan_matched_candidate_to_gene.csv",
+                                    header=0,
+                                    index_col=0)
+
+alt_allel_df = pd.concat([alt_allel_df_rda, alt_allel_df_lfmm, alt_allel_df_pcadapt, alt_allel_df_bayescan])
+
+## remove duplicated rows
+alt_allel_df = alt_allel_df.drop_duplicates()
 
 ## subset the alt_allel_df to only include the type is gene
 alt_allel_df = alt_allel_df[alt_allel_df["type"] == "gene"]
@@ -40,7 +67,7 @@ seq_name_list = list(set(alt_allel_df["seq_name"].tolist()))
 # read all the sift tsv files names in the directory
 tsv_file_list = []
 for file in os.listdir(
-    "/Users/ericliao/Desktop/WNV_project_files/landscape_genetics/Paper_results/sift_prediciton_results/sift_prediction_results"
+        "/Users/ericliao/Desktop/WNV_project_files/landscape_genetics/Paper_results/sift_prediciton_results/sift_prediction_results"
 ):
     if file.endswith(".tsv"):
         ## if the file name contains any of the seq_name in the seq_name_list, then add the file name to the tsv_file_list
@@ -68,15 +95,15 @@ for tsv_file in tsv_file_list:
         alt_allel_df.at[index, "alternate_allele"] = sift_df[sift_df[1] == row["location"]][3].tolist()[0]
         ## # constrcut the alternate_allele value as seq_name_location.alternate_allele,
         # save the value to the new column
-        alt_allel_df.at[index, "alternate_allele"] = row["seq_name"] + "_" + str(row["location"]) + "." + alt_allel_df.at[index, "alternate_allele"]
+        alt_allel_df.at[index, "alternate_allele"] = row["seq_name"] + "_" + str(row["location"]) + "." + \
+                                                     alt_allel_df.at[index, "alternate_allele"]
 
 ## in the attributes column, get the gene name by split the string by the first ; and get the value after the = sign
 alt_allel_df["gene_name"] = alt_allel_df["attributes"].apply(lambda x: x.split(";")[0].split("=")[1])
 
-
 ## read snp info
 allelic_frequency_df = pd.read_csv(
-    "/Users/ericliao/Desktop/WNV_project_files/WNV/california/data/allele_frequency_table_sample_candidate_gene_all.csv",
+    "/Users/ericliao/Desktop/alternative_allele_freqs_by_pop.csv",
     header=0,
     index_col=0
 )
@@ -94,7 +121,9 @@ population_df = population_df[["vcfID", "popID", "GPS.Lat", "GPS.Lon"]]
 snp_df = pd.merge(allelic_frequency_df, population_df, how="left", on=["popID"])
 
 ## rearrange the columns, put vcfID, locID, region, popID, GPS.Lat, GPS.Lon first and the oher columns after
-snp_df = snp_df[["vcfID", "popID", "GPS.Lat", "GPS.Lon"] + [col for col in snp_df.columns if col not in ["vcfID", "locID", "region", "popID", "GPS.Lat", "GPS.Lon"]]]
+snp_df = snp_df[["vcfID", "popID", "GPS.Lat", "GPS.Lon"] + [col for col in snp_df.columns if
+                                                            col not in ["vcfID", "locID", "region", "popID", "GPS.Lat",
+                                                                        "GPS.Lon"]]]
 
 ## rename GPS.Lat to latitude and GPS.Lon to longitude
 snp_df = snp_df.rename(
@@ -103,7 +132,7 @@ snp_df = snp_df.rename(
 
 ## choose the rows are in the interesting gene list
 ## create a new list to store the interesting gene list
-interest_gene_list = ["Ct.00g049290", "Ct.00g030230", "Ct.00g095350", "Ct.00g154760"]
+# interest_gene_list = ["Ct.00g049290", "Ct.00g030230", "Ct.00g095350", "Ct.00g154760"]
 
 ## based on the gene_name column in alt_allel_df, find the rows that the gene_name is in the interest_gene_list
 alt_allel_df = alt_allel_df[alt_allel_df["gene_name"].isin(interest_gene_list)]
@@ -111,14 +140,26 @@ alt_allel_df = alt_allel_df[alt_allel_df["gene_name"].isin(interest_gene_list)]
 ## output the alt_allel_df to a csv file
 alt_allel_df.to_csv("/Users/ericliao/Desktop/WNV_project_files/landscape_genetics/Paper_results/"
                     "compare_landscape_and_outlier_analysis/compare_candidate_allel_alt_allele_freq_over_samples/"
-                    "culex_pop_gene_snp_candidates.csv", index=False)
+                    "culex_pop_gene_snp_candidates_17_genes.csv", index=False)
+
+## get the candidate snp from alt_allel_df
+candidate_snp_list = alt_allel_df["alternate_allele"].str.split(".").str[0].unique()
 
 ## ## read allel frequency info
 allelic_frequency_df = pd.read_csv(
-    "/Users/ericliao/Desktop/WNV_project_files/WNV/california/data/allele_frequency_table_sample_candidate_gene_all.csv",
+    "/Users/ericliao/Desktop/alternative_allele_freqs_by_pop.csv",
     header=0,
     index_col=0
 )
+
+popID = allelic_frequency_df["popID"].tolist()
+
+## only keep the columns that are in the candidate_snp_list
+allelic_frequency_df = allelic_frequency_df[candidate_snp_list]
+
+## adding popID column to the allelic_frequency_df
+allelic_frequency_df["popID"] = popID
+
 
 ## read population info
 population_df = pd.read_csv("/Users/ericliao/Desktop/WNV_project_files/landscape_genetics/"
@@ -126,28 +167,33 @@ population_df = pd.read_csv("/Users/ericliao/Desktop/WNV_project_files/landscape
                             header=0,
                             index_col=0)
 
-## adding a new column in allelic_frequency_df called region
+## adding a new column in allelic_frequency_df called region and Longitude
 allelic_frequency_df["region"] = ""
+allelic_frequency_df["GPS.Lon"] = ""
+allelic_frequency_df["GPS.Lat"] = ""
 
 ## based on the popID in the allelic_frequency_df, get the region value from the population_df
 for index, row in allelic_frequency_df.iterrows():
-    allelic_frequency_df.at[index, "region"] = population_df[population_df["popID"] == row["popID"]]["region"].tolist()[0]
+    allelic_frequency_df.at[index, "region"] = population_df[population_df["popID"] == row["popID"]]["region"].tolist()[
+        0]
+    allelic_frequency_df.at[index, "GPS.Lon"] = population_df[population_df["popID"] == row["popID"]]["GPS.Lon"].tolist()[0]
+    allelic_frequency_df.at[index, "GPS.Lat"] = population_df[population_df["popID"] == row["popID"]]["GPS.Lat"].tolist()[0]
 
 ## sort the allelic_frequency_df by the region column in descending order
-allelic_frequency_df = allelic_frequency_df.sort_values(by=["region"], ascending=False)
+allelic_frequency_df = allelic_frequency_df.sort_values(by=["GPS.Lon"], ascending=[True])
 
 region_to_color = {
-    "Northwest": "skyblue",
-    "Midwest": "hotpink",
     "West Coast": "goldenrod",
     "Southwest": "forestgreen",
+    "Northwest": "skyblue",
+    "Midwest": "hotpink"
 }
 
 ### for each value in the column alternate_allele of alt_allel_df, find the column name in the allelic_frequency_df.
 ## Then plot bar plot for each column, with x axis is the popID name, y axis is the frequency and save the histogram to a pdf file
 for index, row in alt_allel_df.iterrows():
     ## get the alternate_allele value
-    alternate_allele = row["alternate_allele"]
+    alternate_allele = row["alternate_allele"].split(".")[0]
     ## based on the alternate_allele value, get the column name in the allelic_frequency_df
     column_name = allelic_frequency_df.columns[allelic_frequency_df.columns.str.contains(alternate_allele)].tolist()[0]
 
@@ -156,7 +202,8 @@ for index, row in alt_allel_df.iterrows():
 
     ## plot the bar plot
     ax = allelic_frequency_df.plot(x="popID", y=column_name, kind="bar", color=colors, legend=False)
-    ax.set_title(row["gene_name"] + " " + row["seq_name"] + " " + str(row["location"]))
+    ax.set_title(row["gene_name"] + " " + row["seq_name"] + " " + str(row["location"]) + " Order by Longitude")
+
 
     ## add legend
     handles = [plt.Rectangle((0, 0), 1, 1, color=region_to_color[region]) for region in region_to_color]
@@ -164,9 +211,8 @@ for index, row in alt_allel_df.iterrows():
     ax.legend(handles, region_to_color.keys(), loc="upper right")
     ax.set_xlabel("Population ID")
 
-    plt.savefig("/Users/ericliao/Desktop/WNV_project_files/landscape_genetics/Paper_results/"
-                "compare_landscape_and_outlier_analysis/compare_candidate_allel_alt_allele_freq_over_samples/"
-                "alt_allel_freq_distribution_barplot/allele_freq_" + row["gene_name"] + "_" + row["seq_name"] + "_" + str(row["location"]) + ".pdf")
+    plt.savefig("/Users/ericliao/Desktop/WNV_project_files/landscape_genetics/Paper_results/compare_landscape_and_outlier_analysis/"
+                "compare_candidate_allel_alt_allele_freq_over_samples/alt_allel_freq_distribution_barplot_17_genes_order_by_only_longitude/"
+                "allele_freq_" + row["gene_name"] + "_" + row[
+                    "seq_name"] + "_" + str(row["location"]) + "_1.pdf")
     plt.close()
-
-
